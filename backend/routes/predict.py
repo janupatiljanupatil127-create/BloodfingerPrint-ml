@@ -1,51 +1,110 @@
-from flask import Blueprint, request, jsonify
+"""
+Predictor Utility
+BloodPrint AI
+"""
+
 import os
-import time
+import joblib
+import numpy as np
 
-from utils.preprocess import preprocess_image
-from utils.feature_extraction import extract_features
-from utils.predictor import predict
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
 
-predict_bp = Blueprint("predict", __name__)
+random_forest = None
+svm = None
+knn = None
+voting = None
+scaler = None
+label_encoder = None
 
 
-@predict_bp.route("/predict", methods=["POST"])
-def predict_blood_group():
+def load_models():
+    """
+    Load all trained models.
+    """
 
-    if "image" not in request.files:
-        return jsonify({
-            "success": False,
-            "message": "No image uploaded."
-        }), 400
+    global random_forest
+    global svm
+    global knn
+    global voting
+    global scaler
+    global label_encoder
 
-    image = request.files["image"]
+    random_forest = joblib.load(
+        os.path.join(MODEL_DIR, "random_forest.pkl")
+    )
 
-    if image.filename == "":
-        return jsonify({
-            "success": False,
-            "message": "No file selected."
-        }), 400
+    svm = joblib.load(
+        os.path.join(MODEL_DIR, "svm.pkl")
+    )
 
-    upload_folder = "uploads"
-    os.makedirs(upload_folder, exist_ok=True)
+    knn = joblib.load(
+        os.path.join(MODEL_DIR, "knn.pkl")
+    )
 
-    image_path = os.path.join(upload_folder, image.filename)
+    voting = joblib.load(
+        os.path.join(MODEL_DIR, "voting.pkl")
+    )
 
-    image.save(image_path)
+    scaler = joblib.load(
+        os.path.join(MODEL_DIR, "scaler.pkl")
+    )
 
-    start = time.time()
+    label_encoder = joblib.load(
+        os.path.join(MODEL_DIR, "label_encoder.pkl")
+    )
 
-    processed = preprocess_image(image_path)
+    print("All models loaded successfully.")
 
-    features = extract_features(processed)
 
-    result = predict(features)
+def predict(features):
+    """
+    Predict blood group using all models.
+    """
 
-    end = time.time()
+    sample = np.array(features).reshape(1, -1)
 
-    result["prediction_time"] = round(end - start, 3)
+    sample = scaler.transform(sample)
 
-    return jsonify({
-        "success": True,
-        "result": result
-    })
+    rf_prediction = label_encoder.inverse_transform(
+        random_forest.predict(sample)
+    )[0]
+
+    svm_prediction = label_encoder.inverse_transform(
+        svm.predict(sample)
+    )[0]
+
+    knn_prediction = label_encoder.inverse_transform(
+        knn.predict(sample)
+    )[0]
+
+    voting_prediction = label_encoder.inverse_transform(
+        voting.predict(sample)
+    )[0]
+
+    return {
+
+        "random_forest": rf_prediction,
+
+        "svm": svm_prediction,
+
+        "knn": knn_prediction,
+
+        "voting": voting_prediction
+
+    }
+
+
+def models_loaded():
+    """
+    Check whether models are loaded.
+    """
+
+    return all([
+        random_forest,
+        svm,
+        knn,
+        voting,
+        scaler,
+        label_encoder
+    ])
