@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Database
+backend/history.db
+
+# Machine Learning Models
+backend/models/*.pkl
+
+# Uploaded Images
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
