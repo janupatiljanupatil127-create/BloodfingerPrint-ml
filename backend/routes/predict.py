@@ -20,7 +20,7 @@ label_encoder = None
 
 def load_models():
     """
-    Load all trained models.
+    Load all trained ML models.
     """
 
     global random_forest
@@ -30,81 +30,103 @@ def load_models():
     global scaler
     global label_encoder
 
-    random_forest = joblib.load(
-        os.path.join(MODEL_DIR, "random_forest.pkl")
-    )
+    model_files = {
+        "Random Forest": "random_forest.pkl",
+        "SVM": "svm.pkl",
+        "KNN": "knn.pkl",
+        "Voting": "voting.pkl",
+        "Scaler": "scaler.pkl",
+        "Label Encoder": "label_encoder.pkl"
+    }
 
-    svm = joblib.load(
-        os.path.join(MODEL_DIR, "svm.pkl")
-    )
+    loaded = {}
 
-    knn = joblib.load(
-        os.path.join(MODEL_DIR, "knn.pkl")
-    )
+    for model_name, filename in model_files.items():
 
-    voting = joblib.load(
-        os.path.join(MODEL_DIR, "voting.pkl")
-    )
+        file_path = os.path.join(MODEL_DIR, filename)
 
-    scaler = joblib.load(
-        os.path.join(MODEL_DIR, "scaler.pkl")
-    )
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(
+                f"{filename} not found in {MODEL_DIR}"
+            )
 
-    label_encoder = joblib.load(
-        os.path.join(MODEL_DIR, "label_encoder.pkl")
-    )
+        loaded[model_name] = joblib.load(file_path)
 
-    print("All models loaded successfully.")
+    random_forest = loaded["Random Forest"]
+    svm = loaded["SVM"]
+    knn = loaded["KNN"]
+    voting = loaded["Voting"]
+    scaler = loaded["Scaler"]
+    label_encoder = loaded["Label Encoder"]
+
+    print("✅ All ML models loaded successfully.")
+
+    return True
+
+
+def models_loaded():
+    """
+    Returns True if all models are loaded.
+    """
+
+    return all([
+        random_forest is not None,
+        svm is not None,
+        knn is not None,
+        voting is not None,
+        scaler is not None,
+        label_encoder is not None
+    ])
 
 
 def predict(features):
     """
-    Predict blood group using all models.
+    Predict blood group using all trained models.
     """
+
+    if not models_loaded():
+        raise RuntimeError(
+            "Models are not loaded. Run load_models() first."
+        )
 
     sample = np.array(features).reshape(1, -1)
 
     sample = scaler.transform(sample)
 
-    rf_prediction = label_encoder.inverse_transform(
+    rf = label_encoder.inverse_transform(
         random_forest.predict(sample)
     )[0]
 
-    svm_prediction = label_encoder.inverse_transform(
+    svm_result = label_encoder.inverse_transform(
         svm.predict(sample)
     )[0]
 
-    knn_prediction = label_encoder.inverse_transform(
+    knn_result = label_encoder.inverse_transform(
         knn.predict(sample)
     )[0]
 
-    voting_prediction = label_encoder.inverse_transform(
+    voting_result = label_encoder.inverse_transform(
         voting.predict(sample)
     )[0]
 
     return {
-
-        "random_forest": rf_prediction,
-
-        "svm": svm_prediction,
-
-        "knn": knn_prediction,
-
-        "voting": voting_prediction
-
+        "random_forest": rf,
+        "svm": svm_result,
+        "knn": knn_result,
+        "voting": voting_result
     }
 
 
-def models_loaded():
+def get_loaded_models():
     """
-    Check whether models are loaded.
+    Returns model loading status.
     """
 
-    return all([
-        random_forest,
-        svm,
-        knn,
-        voting,
-        scaler,
-        label_encoder
-    ])
+    return {
+        "Random Forest": random_forest is not None,
+        "SVM": svm is not None,
+        "KNN": knn is not None,
+        "Voting Classifier": voting is not None,
+        "Scaler": scaler is not None,
+        "Label Encoder": label_encoder is not None
+    }
